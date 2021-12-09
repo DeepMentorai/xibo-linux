@@ -22,7 +22,7 @@ std::string AppConfig::version()
 std::string AppConfig::releaseVersion()
 {
 #if defined(SNAP_ENABLED)
-    return getenv("SNAP_VERSION");
+    return "1";
 #elif defined(APPIMAGE_ENABLED)
     return "1.8-R6";
 #else
@@ -33,9 +33,9 @@ std::string AppConfig::releaseVersion()
 std::string AppConfig::codeVersion()
 {
 #if defined(SNAP_ENABLED)
-    return getenv("SNAP_REVISION");
+    return "1";
 #else
-    return GIT_HASH;
+    return "123";
 #endif
 }
 

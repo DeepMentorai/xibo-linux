@@ -59,6 +59,15 @@ parts:
       apt-get install -y g++-8
       update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-8 90
       update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-8 90
+      wget http://archive.ubuntu.com/ubuntu/pool/main/o/orc/liborc-0.4-0_0.4.32-1_amd64.deb
+      dpkg -i liborc-0.4-0_0.4.32-1_amd64.deb
+      wget http://ftp.tw.debian.org/debian/pool/main/o/orc/liborc-0.4-dev-bin_0.4.32-1_amd64.deb
+      dpkg -i liborc-0.4-dev-bin_0.4.32-1_amd64.deb
+      wget http://ftp.tw.debian.org/debian/pool/main/o/orc/liborc-0.4-dev_0.4.32-1_amd64.deb
+      dpkg -i liborc-0.4-dev_0.4.32-1_amd64.deb
+      rm liborc-0.4-0_0.4.32-1_amd64.deb
+      rm liborc-0.4-dev-bin_0.4.32-1_amd64.deb
+      rm liborc-0.4-dev_0.4.32-1_amd64.deb
     after: [base]
 
   cmake:
@@ -109,9 +118,9 @@ parts:
       unzip -a cryptopp_pem.zip && \
       cp -r cryptopp-pem-095f08ff2ef9bca7b81036a59f2395e4f08ce2e8/. cryptopp-CRYPTOPP_8_1_0 && \
       cd cryptopp-CRYPTOPP_8_1_0 && \
-      make -j4 && \
+      make -j24 && \
       make install
-
+  
   gstreamer:
     override-pull: |
       snapcraftctl pull
@@ -131,6 +140,7 @@ parts:
       - libgl1-mesa-dev
       - libglu1-mesa-dev
       - libglew-dev
+      - libdw-dev
     stage-packages:
       - liborc-0.4-dev
       - libasound2-dev
@@ -150,6 +160,8 @@ parts:
       - libgl1-mesa-glx
       - libglu1-mesa
       - libglew2.0
+      - libdw1
+      - libunwind8
     stage:
       - -usr/lib/x86_64-linux-gnu/libLLVM-10.so.1
       - -usr/share/doc/libllvm10/changelog.Debian.gz
@@ -168,6 +180,9 @@ parts:
       - liborc-0.4-dev
       - libfribidi-dev
       - libpulse-dev
+    stage-packages:
+      - libdw1
+      - libunwind8
     after: [gstreamer]
 
   gst-libav:
@@ -184,6 +199,8 @@ parts:
       - libva-dev
     stage-packages:
       - libpulse0
+      - libdw1
+      - libunwind8
     after: [gst-plugins-base]
 
   gst-plugins-good:
@@ -198,7 +215,46 @@ parts:
       - libpulse-dev
     stage-packages:
       - libpulse0
+      - libdw1
+      - libunwind8
     after: [gst-libav]
+   
+  gst-plugins-bad:
+    override-pull: |
+      snapcraftctl pull
+      git checkout 1.16.2
+    source: https://github.com/GStreamer/gst-plugins-bad.git
+    plugin: autotools
+    configflags: ['--prefix=/usr', '--disable-gtk-doc']
+    build-packages:
+      - liborc-0.4-dev
+      - libpulse-dev
+    stage-packages:
+      - libpulse0
+      - libdw1
+      - libunwind8
+    after: [gst-plugins-good]
+    
+  gstreamer-vaapi:
+    override-pull: |
+      snapcraftctl pull
+      git checkout 1.16.2
+    source: https://github.com/GStreamer/gstreamer-vaapi.git
+    plugin: autotools
+    configflags: ['--prefix=/usr' , '--disable-gtk-doc']
+    
+    build-packages:
+      - liborc-0.4-dev
+      - libpulse-dev
+    stage-packages:
+      - libpulse0
+      - libdw1
+      - libunwind8
+      - libva-x11-2
+      - libva2
+    after: [gst-plugins-bad]
+    
+   
 
   date-tz:
     source: https://github.com/HowardHinnant/date/archive/v3.0.0.tar.gz
@@ -228,7 +284,7 @@ parts:
     configflags:
       - -DCMAKE_BUILD_TYPE=Release
       - -DAPP_ENV=SNAP
-    disable-parallel: true
+   # disable-parallel: true
     stage-packages:
       - freeglut3
       - libzmq5
@@ -238,4 +294,20 @@ parts:
       - libwebkitgtk-3.0-0
       - libgpm2 # gstreamer warning
       - libslang2 # gstreamer warning
-    after: [zmq, boost, spdlog, gtest, gstreamer, date-tz, sqlite-orm] 
+      - libdw1
+    after: [zmq, boost, spdlog, gtest, gstreamer,gstreamer-vaapi, date-tz,  sqlite-orm] 
+  
+  driver:
+    plugin: nil
+    override-build: |
+      wget http://archive.ubuntu.com/ubuntu/pool/universe/libv/libva-utils/vainfo_2.1.0+ds1-1_amd64.deb
+      dpkg -x vainfo_2.1.0+ds1-1_amd64.deb $SNAPCRAFT_PART_INSTALL/
+      wget http://archive.ubuntu.com/ubuntu/pool/universe/libv/libva/va-driver-all_2.1.0-3_amd64.deb
+      dpkg -x va-driver-all_2.1.0-3_amd64.deb $SNAPCRAFT_PART_INSTALL/
+      wget http://archive.ubuntu.com/ubuntu/pool/universe/i/intel-vaapi-driver/i965-va-driver_2.1.0-0ubuntu1_amd64.deb
+      dpkg -x i965-va-driver_2.1.0-0ubuntu1_amd64.deb $SNAPCRAFT_PART_INSTALL/
+    stage-packages:
+      - libva-drm2
+      - libva-wayland2
+    after: [player]
+  
